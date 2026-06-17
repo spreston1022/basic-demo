@@ -51,11 +51,11 @@
       }
     },
     "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "Authorization",
-        "description": "Bearer token — your Zuplo API key"
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "OAuth Bearer JWT — must contain a 'sid' claim"
       }
     }
   },
@@ -67,17 +67,68 @@
   ],
   "security": [
     {
-      "ApiKeyAuth": []
+      "BearerAuth": []
     }
   ],
   "paths": {
+    "/auth": {
+      "x-zuplo-path": {
+        "pathMode": "open-api"
+      },
+      "post": {
+        "summary": "Authentication endpoint",
+        "description": "Sliding-window rate limited to 60 req/min per IP. Add `?bypass` to skip the rate limit. Requires a Bearer JWT with a `sid` claim; caps total active sessions at 3.",
+        "operationId": "auth-post",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Echo response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EchoResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid Bearer token"
+          },
+          "429": {
+            "description": "Rate limit exceeded (60 req/min) or session cap reached"
+          }
+        },
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "export": "urlForwardHandler",
+            "module": "$import(@zuplo/runtime)",
+            "options": {
+              "baseUrl": "https://echo.zuplo.io"
+            }
+          },
+          "policies": {
+            "inbound": ["auth-rate-limit", "session-cap"]
+          }
+        }
+      }
+    },
     "/path-11": {
       "x-zuplo-path": {
         "pathMode": "open-api"
       },
       "get": {
         "summary": "Echo a GET request",
-        "description": "Returns the full details of the incoming GET request as JSON — headers, query parameters, URL, and method.",
+        "description": "Returns the full details of the incoming GET request as JSON — headers, query parameters, URL, and method. Requires a Bearer JWT with a `sid` claim; caps total active sessions at 3.",
         "operationId": "echo-get",
         "parameters": [
           {
@@ -101,7 +152,7 @@
                   "method": "GET",
                   "url": "https://echo.zuplo.io/path-10?foo=bar",
                   "headers": {
-                    "authorization": "Bearer zpka_abc123",
+                    "authorization": "Bearer <jwt>",
                     "user-agent": "curl/7.88.1",
                     "accept": "*/*"
                   },
@@ -112,6 +163,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid Bearer token"
+          },
+          "503": {
+            "description": "Session cap reached"
           }
         },
         "x-zuplo-route": {
@@ -124,7 +181,7 @@
             }
           },
           "policies": {
-            "inbound": []
+            "inbound": ["session-cap"]
           }
         }
       }

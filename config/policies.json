@@ -1,3 +1,33 @@
 {
-  "policies": []
+  "policies": [
+    {
+      "name": "auth-rate-limit",
+      "policyType": "rate-limit-inbound",
+      "handler": {
+        "export": "RateLimitInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "rateLimitBy": "function",
+          "requestsAllowed": 60,
+          "timeWindowMinutes": 1,
+          "identifier": {
+            "export": "rateLimitKey",
+            "module": "$import(./modules/auth-rate-limit)"
+          }
+        }
+      }
+    },
+    {
+      "name": "session-cap",
+      "policyType": "custom-code-inbound",
+      "handler": {
+        "export": "default",
+        "module": "$import(./modules/session-cap)",
+        "options": {
+          "maxSessions": 3,
+          "sessionTtlSeconds": 300
+        }
+      }
+    }
+  ]
 }

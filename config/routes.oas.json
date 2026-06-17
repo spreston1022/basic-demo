@@ -122,6 +122,54 @@
         }
       }
     },
+    "/profile": {
+      "x-zuplo-path": {
+        "pathMode": "open-api"
+      },
+      "get": {
+        "summary": "Get user profile",
+        "description": "Protected endpoint. Session cap enforced — same 3-session limit shared across all endpoints.",
+        "operationId": "profile-get",
+        "responses": {
+          "200": { "description": "Echo response" },
+          "401": { "description": "Missing or invalid Bearer token" },
+          "503": { "description": "Session cap reached" }
+        },
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "export": "urlForwardHandler",
+            "module": "$import(@zuplo/runtime)",
+            "options": { "baseUrl": "https://echo.zuplo.io" }
+          },
+          "policies": { "inbound": ["session-cap"] }
+        }
+      }
+    },
+    "/orders": {
+      "x-zuplo-path": {
+        "pathMode": "open-api"
+      },
+      "get": {
+        "summary": "List orders",
+        "description": "Protected endpoint. Session cap enforced — same 3-session limit shared across all endpoints.",
+        "operationId": "orders-get",
+        "responses": {
+          "200": { "description": "Echo response" },
+          "401": { "description": "Missing or invalid Bearer token" },
+          "503": { "description": "Session cap reached" }
+        },
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "export": "urlForwardHandler",
+            "module": "$import(@zuplo/runtime)",
+            "options": { "baseUrl": "https://echo.zuplo.io" }
+          },
+          "policies": { "inbound": ["session-cap"] }
+        }
+      }
+    },
     "/path-11": {
       "x-zuplo-path": {
         "pathMode": "open-api"

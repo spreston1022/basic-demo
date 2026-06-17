@@ -133,7 +133,7 @@
         "responses": {
           "200": { "description": "Echo response" },
           "401": { "description": "Missing or invalid Bearer token" },
-          "503": { "description": "Session cap reached" }
+          "503": { "description": "Session cap reached (403 Forbidden)" }
         },
         "x-zuplo-route": {
           "corsPolicy": "none",
@@ -157,7 +157,7 @@
         "responses": {
           "200": { "description": "Echo response" },
           "401": { "description": "Missing or invalid Bearer token" },
-          "503": { "description": "Session cap reached" }
+          "503": { "description": "Session cap reached (403 Forbidden)" }
         },
         "x-zuplo-route": {
           "corsPolicy": "none",
@@ -216,7 +216,7 @@
             "description": "Missing or invalid Bearer token"
           },
           "503": {
-            "description": "Session cap reached"
+            "description": "Session cap reached (403 Forbidden)"
           }
         },
         "x-zuplo-route": {

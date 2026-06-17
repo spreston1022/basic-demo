@@ -60,8 +60,8 @@ export default async function sessionCapPolicy(
       context.log.warn(
         `[${policyName}] cap reached: ${activeSessions.length}/${maxSessions}, rejected sid=${sid}`,
       );
-      return HttpProblems.serviceUnavailable(request, context, {
-        detail: `Maximum concurrent sessions (${maxSessions}) reached. Try again later.`,
+      return HttpProblems.forbidden(request, context, {
+        detail: `Maximum concurrent sessions (${maxSessions}) reached.`,
       });
     }
     activeSessions.push(sid);

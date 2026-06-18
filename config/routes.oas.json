@@ -117,7 +117,11 @@
             }
           },
           "policies": {
-            "inbound": ["auth-rate-limit", "jwt-auth", "session-cap"]
+            "inbound": [
+              "auth-rate-limit",
+              "jwt-auth",
+              "session-cap"
+            ]
           }
         }
       }
@@ -131,18 +135,31 @@
         "description": "Protected endpoint. Session cap enforced — same 3-session limit shared across all endpoints.",
         "operationId": "profile-get",
         "responses": {
-          "200": { "description": "Echo response" },
-          "401": { "description": "Missing or invalid Bearer token" },
-          "503": { "description": "Session cap reached (403 Forbidden)" }
+          "200": {
+            "description": "Echo response"
+          },
+          "401": {
+            "description": "Missing or invalid Bearer token"
+          },
+          "503": {
+            "description": "Session cap reached (403 Forbidden)"
+          }
         },
         "x-zuplo-route": {
           "corsPolicy": "none",
           "handler": {
             "export": "urlForwardHandler",
             "module": "$import(@zuplo/runtime)",
-            "options": { "baseUrl": "https://echo.zuplo.io" }
+            "options": {
+              "baseUrl": "https://echo.zuplo.io"
+            }
           },
-          "policies": { "inbound": ["jwt-auth", "session-cap"] }
+          "policies": {
+            "inbound": [
+              "jwt-auth",
+              "session-cap"
+            ]
+          }
         }
       }
     },
@@ -155,22 +172,35 @@
         "description": "Protected endpoint. Session cap enforced — same 3-session limit shared across all endpoints.",
         "operationId": "orders-get",
         "responses": {
-          "200": { "description": "Echo response" },
-          "401": { "description": "Missing or invalid Bearer token" },
-          "503": { "description": "Session cap reached (403 Forbidden)" }
+          "200": {
+            "description": "Echo response"
+          },
+          "401": {
+            "description": "Missing or invalid Bearer token"
+          },
+          "503": {
+            "description": "Session cap reached (403 Forbidden)"
+          }
         },
         "x-zuplo-route": {
           "corsPolicy": "none",
           "handler": {
             "export": "urlForwardHandler",
             "module": "$import(@zuplo/runtime)",
-            "options": { "baseUrl": "https://echo.zuplo.io" }
+            "options": {
+              "baseUrl": "https://echo.zuplo.io"
+            }
           },
-          "policies": { "inbound": ["jwt-auth", "session-cap"] }
+          "policies": {
+            "inbound": [
+              "jwt-auth",
+              "session-cap"
+            ]
+          }
         }
       }
     },
-    "/path-11": {
+    "/path-12": {
       "x-zuplo-path": {
         "pathMode": "open-api"
       },
@@ -229,7 +259,10 @@
             }
           },
           "policies": {
-            "inbound": ["jwt-auth", "session-cap"]
+            "inbound": [
+              "jwt-auth",
+              "session-cap"
+            ]
           }
         }
       }

@@ -25,7 +25,7 @@
         "module": "$import(./modules/session-cap)",
         "options": {
           "maxSessions": 3,
-          "sessionTtlSeconds": 300
+          "sessionTtlSeconds": 600
         }
       }
     }

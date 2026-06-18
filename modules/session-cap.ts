@@ -22,11 +22,15 @@ async function pipeline(
     },
     body: JSON.stringify(commands),
   });
-  const rows = await res.json() as Array<{ result?: unknown; error?: string }>;
+  const text = await res.text();
+  if (!text.startsWith("[")) {
+    throw new Error(`Upstash response: ${text.slice(0, 200)}`);
+  }
+  const rows = JSON.parse(text) as Array<{ result?: unknown; error?: string }>;
   for (const row of rows) {
     if (row.error) throw new Error(row.error);
   }
-  return rows.map((r) => r.result ?? null);
+  return rows.map((r) => (r.result !== undefined ? r.result : null));
 }
 
 export default async function sessionCapPolicy(

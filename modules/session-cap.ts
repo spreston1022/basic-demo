@@ -9,18 +9,24 @@ interface PolicyOptions {
 
 const SESSION_KEY = "active-sessions";
 
-async function upstash(url: string, token: string, command: unknown[]): Promise<unknown> {
-  const res = await fetch(url, {
+async function pipeline(
+  url: string,
+  token: string,
+  commands: unknown[][],
+): Promise<unknown[]> {
+  const res = await fetch(`${url}/pipeline`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(command),
+    body: JSON.stringify(commands),
   });
-  const json = await res.json() as { result?: unknown; error?: string };
-  if (json.error) throw new Error(json.error);
-  return json.result;
+  const rows = await res.json() as Array<{ result?: unknown; error?: string }>;
+  for (const row of rows) {
+    if (row.error) throw new Error(row.error);
+  }
+  return rows.map((r) => r.result ?? null);
 }
 
 export default async function sessionCapPolicy(
@@ -32,7 +38,6 @@ export default async function sessionCapPolicy(
   const maxSessions = options.maxSessions ?? 3;
   const idleTimeout = (options.idleTimeoutSeconds ?? 60) * 1000;
   const { redisUrl, redisToken } = options;
-  throw new Error(`DBG url_len=${redisUrl?.length} token_len=${redisToken?.length} url_start=${redisUrl?.slice(0,15)}`);
   const now = Date.now();
   const cutoff = now - idleTimeout;
 
@@ -46,29 +51,36 @@ export default async function sessionCapPolicy(
     });
   }
 
-  const r = (cmd: unknown[]) => upstash(redisUrl, redisToken, cmd);
+  // Prune stale + check existing + get count in one round-trip
+  const [, existingScore, activeCount] = await pipeline(redisUrl, redisToken, [
+    ["ZREMRANGEBYSCORE", SESSION_KEY, 0, cutoff],
+    ["ZSCORE", SESSION_KEY, sid],
+    ["ZCARD", SESSION_KEY],
+  ]);
 
-  await r(["ZREMRANGEBYSCORE", SESSION_KEY, 0, cutoff]);
-
-  const existingScore = await r(["ZSCORE", SESSION_KEY, sid]);
   if (existingScore !== null) {
-    await r(["ZADD", SESSION_KEY, now, sid]);
+    // Known session — refresh timestamp
+    await pipeline(redisUrl, redisToken, [
+      ["ZADD", SESSION_KEY, now, sid],
+    ]);
     return request;
   }
 
-  const activeCount = await r(["ZCARD", SESSION_KEY]) as number;
-  if (activeCount >= maxSessions) {
+  const count = activeCount as number;
+  if (count >= maxSessions) {
     context.log.warn(
-      `[${policyName}] cap reached: ${activeCount}/${maxSessions}, rejected sid=${sid}`,
+      `[${policyName}] cap reached: ${count}/${maxSessions}, rejected sid=${sid}`,
     );
     return HttpProblems.forbidden(request, context, {
       detail: `Maximum concurrent sessions (${maxSessions}) reached.`,
     });
   }
 
-  await r(["ZADD", SESSION_KEY, now, sid]);
+  await pipeline(redisUrl, redisToken, [
+    ["ZADD", SESSION_KEY, now, sid],
+  ]);
   context.log.info(
-    `[${policyName}] registered sid=${sid} (${activeCount + 1}/${maxSessions})`,
+    `[${policyName}] registered sid=${sid} (${count + 1}/${maxSessions})`,
   );
 
   return request;

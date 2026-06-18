@@ -11,7 +11,7 @@ export function rateLimitKey(
   policyName: string,
 ): CustomRateLimitDetails | undefined {
   const url = new URL(request.url);
-  if (url.searchParams.has("bypass")) {
+  if (url.searchParams.get("bypass") === "true") {
     context.log.info(`[${policyName}] rate limit bypassed via ?bypass`);
     return undefined;
   }

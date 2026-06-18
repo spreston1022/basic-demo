@@ -38,7 +38,7 @@
         "module": "$import(./modules/session-cap)",
         "options": {
           "maxSessions": 3,
-          "idleTimeoutSeconds": 10
+          "idleTimeoutSeconds": 60
         }
       }
     }

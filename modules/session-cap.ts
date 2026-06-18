@@ -6,10 +6,17 @@ interface PolicyOptions {
   idleTimeoutSeconds?: number;
 }
 
-const redis = new Redis({
-  url: environment.UPSTASH_REDIS_REST_URL,
-  token: environment.UPSTASH_REDIS_REST_TOKEN,
-});
+let redis: Redis | undefined;
+
+function getRedis(): Redis {
+  if (!redis) {
+    redis = new Redis({
+      url: environment.UPSTASH_REDIS_REST_URL,
+      token: environment.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+  return redis;
+}
 
 const SESSION_KEY = "active-sessions";
 
@@ -34,19 +41,21 @@ export default async function sessionCapPolicy(
     });
   }
 
+  const r = getRedis();
+
   // Prune sessions idle for longer than idleTimeout
-  await redis.zremrangebyscore(SESSION_KEY, 0, cutoff);
+  await r.zremrangebyscore(SESSION_KEY, 0, cutoff);
 
   // Check if this SID is already active
-  const existingScore = await redis.zscore(SESSION_KEY, sid);
+  const existingScore = await r.zscore(SESSION_KEY, sid);
   if (existingScore !== null) {
     // Refresh last-seen timestamp
-    await redis.zadd(SESSION_KEY, { score: now, member: sid });
+    await r.zadd(SESSION_KEY, { score: now, member: sid });
     return request;
   }
 
   // New SID — check cap
-  const activeCount = await redis.zcard(SESSION_KEY);
+  const activeCount = await r.zcard(SESSION_KEY);
   if (activeCount >= maxSessions) {
     context.log.warn(
       `[${policyName}] cap reached: ${activeCount}/${maxSessions}, rejected sid=${sid}`,
@@ -57,7 +66,7 @@ export default async function sessionCapPolicy(
   }
 
   // Register new session
-  await redis.zadd(SESSION_KEY, { score: now, member: sid });
+  await r.zadd(SESSION_KEY, { score: now, member: sid });
   context.log.info(
     `[${policyName}] registered sid=${sid} (${activeCount + 1}/${maxSessions})`,
   );

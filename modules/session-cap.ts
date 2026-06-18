@@ -32,6 +32,7 @@ export default async function sessionCapPolicy(
   const maxSessions = options.maxSessions ?? 3;
   const idleTimeout = (options.idleTimeoutSeconds ?? 60) * 1000;
   const { redisUrl, redisToken } = options;
+  throw new Error(`DBG url_len=${redisUrl?.length} token_len=${redisToken?.length} url_start=${redisUrl?.slice(0,15)}`);
   const now = Date.now();
   const cutoff = now - idleTimeout;
 

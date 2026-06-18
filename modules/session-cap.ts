@@ -10,18 +10,6 @@ interface PolicyOptions {
   sessionTtlSeconds?: number;
 }
 
-// Decodes JWT payload without verifying signature — edge inspection only.
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(padded)) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 export default async function sessionCapPolicy(
   request: ZuploRequest,
   context: ZuploContext,
@@ -31,21 +19,11 @@ export default async function sessionCapPolicy(
   const maxSessions = options.maxSessions ?? 5000;
   const ttl = options.sessionTtlSeconds ?? 3600;
 
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return HttpProblems.unauthorized(request, context, {
-      detail: "Bearer token required",
-    });
-  }
+  // jwt-auth runs first and populates request.user — sid comes from the verified claims
+  const sid = (request.user?.data as Record<string, unknown>)?.sid as
+    | string
+    | undefined;
 
-  const payload = decodeJwtPayload(authHeader.slice(7));
-  if (!payload) {
-    return HttpProblems.unauthorized(request, context, {
-      detail: "Invalid token format",
-    });
-  }
-
-  const sid = payload.sid as string | undefined;
   if (!sid) {
     return HttpProblems.unauthorized(request, context, {
       detail: "Token is missing required 'sid' claim",

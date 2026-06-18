@@ -1,6 +1,17 @@
 {
   "policies": [
     {
+      "name": "jwt-auth",
+      "policyType": "open-id-jwt-auth-inbound",
+      "handler": {
+        "export": "OpenIdJwtInboundPolicy",
+        "module": "$import(@zuplo/runtime)",
+        "options": {
+          "secret": "$env(JWT_SECRET)"
+        }
+      }
+    },
+    {
       "name": "auth-rate-limit",
       "policyType": "rate-limit-inbound",
       "handler": {

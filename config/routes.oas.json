@@ -117,7 +117,7 @@
             }
           },
           "policies": {
-            "inbound": ["auth-rate-limit", "session-cap"]
+            "inbound": ["auth-rate-limit", "jwt-auth", "session-cap"]
           }
         }
       }
@@ -142,7 +142,7 @@
             "module": "$import(@zuplo/runtime)",
             "options": { "baseUrl": "https://echo.zuplo.io" }
           },
-          "policies": { "inbound": ["session-cap"] }
+          "policies": { "inbound": ["jwt-auth", "session-cap"] }
         }
       }
     },
@@ -166,7 +166,7 @@
             "module": "$import(@zuplo/runtime)",
             "options": { "baseUrl": "https://echo.zuplo.io" }
           },
-          "policies": { "inbound": ["session-cap"] }
+          "policies": { "inbound": ["jwt-auth", "session-cap"] }
         }
       }
     },
@@ -229,7 +229,7 @@
             }
           },
           "policies": {
-            "inbound": ["session-cap"]
+            "inbound": ["jwt-auth", "session-cap"]
           }
         }
       }

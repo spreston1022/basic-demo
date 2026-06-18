@@ -1,15 +1,15 @@
-import { HttpProblems, ZuploContext, ZuploRequest, environment } from "@zuplo/runtime";
+import { HttpProblems, ZuploContext, ZuploRequest } from "@zuplo/runtime";
 
 interface PolicyOptions {
   maxSessions: number;
   idleTimeoutSeconds?: number;
+  redisUrl: string;
+  redisToken: string;
 }
 
 const SESSION_KEY = "active-sessions";
 
-async function upstash(command: unknown[]): Promise<unknown> {
-  const url = environment.UPSTASH_REDIS_REST_URL;
-  const token = environment.UPSTASH_REDIS_REST_TOKEN;
+async function upstash(url: string, token: string, command: unknown[]): Promise<unknown> {
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -31,6 +31,7 @@ export default async function sessionCapPolicy(
 ) {
   const maxSessions = options.maxSessions ?? 3;
   const idleTimeout = (options.idleTimeoutSeconds ?? 60) * 1000;
+  const { redisUrl, redisToken } = options;
   const now = Date.now();
   const cutoff = now - idleTimeout;
 
@@ -44,18 +45,17 @@ export default async function sessionCapPolicy(
     });
   }
 
-  // Prune sessions idle longer than idleTimeout
-  await upstash(["ZREMRANGEBYSCORE", SESSION_KEY, 0, cutoff]);
+  const r = (cmd: unknown[]) => upstash(redisUrl, redisToken, cmd);
 
-  // Check if SID is already active
-  const existingScore = await upstash(["ZSCORE", SESSION_KEY, sid]);
+  await r(["ZREMRANGEBYSCORE", SESSION_KEY, 0, cutoff]);
+
+  const existingScore = await r(["ZSCORE", SESSION_KEY, sid]);
   if (existingScore !== null) {
-    await upstash(["ZADD", SESSION_KEY, now, sid]);
+    await r(["ZADD", SESSION_KEY, now, sid]);
     return request;
   }
 
-  // New SID — check cap
-  const activeCount = await upstash(["ZCARD", SESSION_KEY]) as number;
+  const activeCount = await r(["ZCARD", SESSION_KEY]) as number;
   if (activeCount >= maxSessions) {
     context.log.warn(
       `[${policyName}] cap reached: ${activeCount}/${maxSessions}, rejected sid=${sid}`,
@@ -65,7 +65,7 @@ export default async function sessionCapPolicy(
     });
   }
 
-  await upstash(["ZADD", SESSION_KEY, now, sid]);
+  await r(["ZADD", SESSION_KEY, now, sid]);
   context.log.info(
     `[${policyName}] registered sid=${sid} (${activeCount + 1}/${maxSessions})`,
   );

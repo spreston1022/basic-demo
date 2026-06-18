@@ -38,7 +38,9 @@
         "module": "$import(./modules/session-cap)",
         "options": {
           "maxSessions": 3,
-          "idleTimeoutSeconds": 60
+          "idleTimeoutSeconds": 60,
+          "redisUrl": "$env(UPSTASH_REDIS_REST_URL)",
+          "redisToken": "$env(UPSTASH_REDIS_REST_TOKEN)"
         }
       }
     }

@@ -7,7 +7,9 @@
         "export": "OpenIdJwtInboundPolicy",
         "module": "$import(@zuplo/runtime)",
         "options": {
-          "secret": "$env(JWT_SECRET)"
+          "secret": "$env(JWT_SECRET)",
+          "issuer": "https://auth.example.com",
+          "audience": "https://basic-demo-main-3fb708f.zuplo.app"
         }
       }
     },

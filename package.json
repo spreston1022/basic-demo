@@ -10,7 +10,6 @@
     "docs": "zuplo docs"
   },
   "dependencies": {
-    "@upstash/redis": "^1.38.0",
     "zuplo": "^6"
   },
   "devDependencies": {

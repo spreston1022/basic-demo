@@ -1,24 +1,27 @@
 import { HttpProblems, ZuploContext, ZuploRequest, environment } from "@zuplo/runtime";
-import { Redis } from "@upstash/redis";
 
 interface PolicyOptions {
   maxSessions: number;
   idleTimeoutSeconds?: number;
 }
 
-let redis: Redis | undefined;
-
-function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis({
-      url: environment.UPSTASH_REDIS_REST_URL,
-      token: environment.UPSTASH_REDIS_REST_TOKEN,
-    });
-  }
-  return redis;
-}
-
 const SESSION_KEY = "active-sessions";
+
+async function upstash(command: unknown[]): Promise<unknown> {
+  const url = environment.UPSTASH_REDIS_REST_URL;
+  const token = environment.UPSTASH_REDIS_REST_TOKEN;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(command),
+  });
+  const json = await res.json() as { result?: unknown; error?: string };
+  if (json.error) throw new Error(json.error);
+  return json.result;
+}
 
 export default async function sessionCapPolicy(
   request: ZuploRequest,
@@ -27,7 +30,7 @@ export default async function sessionCapPolicy(
   policyName: string,
 ) {
   const maxSessions = options.maxSessions ?? 3;
-  const idleTimeout = (options.idleTimeoutSeconds ?? 10) * 1000;
+  const idleTimeout = (options.idleTimeoutSeconds ?? 60) * 1000;
   const now = Date.now();
   const cutoff = now - idleTimeout;
 
@@ -41,21 +44,18 @@ export default async function sessionCapPolicy(
     });
   }
 
-  const r = getRedis();
+  // Prune sessions idle longer than idleTimeout
+  await upstash(["ZREMRANGEBYSCORE", SESSION_KEY, 0, cutoff]);
 
-  // Prune sessions idle for longer than idleTimeout
-  await r.zremrangebyscore(SESSION_KEY, 0, cutoff);
-
-  // Check if this SID is already active
-  const existingScore = await r.zscore(SESSION_KEY, sid);
+  // Check if SID is already active
+  const existingScore = await upstash(["ZSCORE", SESSION_KEY, sid]);
   if (existingScore !== null) {
-    // Refresh last-seen timestamp
-    await r.zadd(SESSION_KEY, { score: now, member: sid });
+    await upstash(["ZADD", SESSION_KEY, now, sid]);
     return request;
   }
 
   // New SID — check cap
-  const activeCount = await r.zcard(SESSION_KEY);
+  const activeCount = await upstash(["ZCARD", SESSION_KEY]) as number;
   if (activeCount >= maxSessions) {
     context.log.warn(
       `[${policyName}] cap reached: ${activeCount}/${maxSessions}, rejected sid=${sid}`,
@@ -65,8 +65,7 @@ export default async function sessionCapPolicy(
     });
   }
 
-  // Register new session
-  await r.zadd(SESSION_KEY, { score: now, member: sid });
+  await upstash(["ZADD", SESSION_KEY, now, sid]);
   context.log.info(
     `[${policyName}] registered sid=${sid} (${activeCount + 1}/${maxSessions})`,
   );

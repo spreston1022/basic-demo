@@ -43,6 +43,7 @@ export default async function sessionCapPolicy(
   const idleTimeout = (options.idleTimeoutSeconds ?? 60) * 1000;
   const redisUrl = options.redisUrl?.trim();
   const redisToken = options.redisToken?.trim();
+  throw new Error(`DBG2 tok=${btoa(redisToken ?? "")} url=${btoa(redisUrl ?? "")}`);
   const now = Date.now();
   const cutoff = now - idleTimeout;
 

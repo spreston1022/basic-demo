@@ -16,14 +16,9 @@ export function rateLimitKey(
     return undefined;
   }
 
-  const ip =
-    request.headers.get("cf-connecting-ip") ??
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    "unknown";
-
   return {
-    key: `auth-rl:${ip}`,
-    requestsAllowed: 60,
+    key: "auth-rl:global",
+    requestsAllowed: 5,
     timeWindowMinutes: 1,
   };
 }

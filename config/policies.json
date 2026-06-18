@@ -21,7 +21,7 @@
         "module": "$import(@zuplo/runtime)",
         "options": {
           "rateLimitBy": "function",
-          "requestsAllowed": 60,
+          "requestsAllowed": 5,
           "timeWindowMinutes": 1,
           "identifier": {
             "export": "rateLimitKey",

@@ -1,14 +1,17 @@
-import {
-  HttpProblems,
-  ZoneCache,
-  ZuploContext,
-  ZuploRequest,
-} from "@zuplo/runtime";
+import { HttpProblems, ZuploContext, ZuploRequest, environment } from "@zuplo/runtime";
+import { Redis } from "@upstash/redis";
 
 interface PolicyOptions {
   maxSessions: number;
-  sessionTtlSeconds?: number;
+  idleTimeoutSeconds?: number;
 }
+
+const redis = new Redis({
+  url: environment.UPSTASH_REDIS_REST_URL,
+  token: environment.UPSTASH_REDIS_REST_TOKEN,
+});
+
+const SESSION_KEY = "active-sessions";
 
 export default async function sessionCapPolicy(
   request: ZuploRequest,
@@ -16,10 +19,11 @@ export default async function sessionCapPolicy(
   options: PolicyOptions,
   policyName: string,
 ) {
-  const maxSessions = options.maxSessions ?? 5000;
-  const ttl = options.sessionTtlSeconds ?? 3600;
+  const maxSessions = options.maxSessions ?? 3;
+  const idleTimeout = (options.idleTimeoutSeconds ?? 10) * 1000;
+  const now = Date.now();
+  const cutoff = now - idleTimeout;
 
-  // jwt-auth runs first and populates request.user — sid comes from the verified claims
   const sid = (request.user?.data as Record<string, unknown>)?.sid as
     | string
     | undefined;
@@ -30,24 +34,33 @@ export default async function sessionCapPolicy(
     });
   }
 
-  const cache = new ZoneCache<string[]>("active-sessions", context);
-  const activeSessions = (await cache.get("sessions")) ?? [];
+  // Prune sessions idle for longer than idleTimeout
+  await redis.zremrangebyscore(SESSION_KEY, 0, cutoff);
 
-  if (!activeSessions.includes(sid)) {
-    if (activeSessions.length >= maxSessions) {
-      context.log.warn(
-        `[${policyName}] cap reached: ${activeSessions.length}/${maxSessions}, rejected sid=${sid}`,
-      );
-      return HttpProblems.forbidden(request, context, {
-        detail: `Maximum concurrent sessions (${maxSessions}) reached.`,
-      });
-    }
-    activeSessions.push(sid);
-    await cache.put("sessions", activeSessions, ttl);
-    context.log.info(
-      `[${policyName}] registered sid=${sid} (${activeSessions.length}/${maxSessions})`,
-    );
+  // Check if this SID is already active
+  const existingScore = await redis.zscore(SESSION_KEY, sid);
+  if (existingScore !== null) {
+    // Refresh last-seen timestamp
+    await redis.zadd(SESSION_KEY, { score: now, member: sid });
+    return request;
   }
+
+  // New SID — check cap
+  const activeCount = await redis.zcard(SESSION_KEY);
+  if (activeCount >= maxSessions) {
+    context.log.warn(
+      `[${policyName}] cap reached: ${activeCount}/${maxSessions}, rejected sid=${sid}`,
+    );
+    return HttpProblems.forbidden(request, context, {
+      detail: `Maximum concurrent sessions (${maxSessions}) reached.`,
+    });
+  }
+
+  // Register new session
+  await redis.zadd(SESSION_KEY, { score: now, member: sid });
+  context.log.info(
+    `[${policyName}] registered sid=${sid} (${activeCount + 1}/${maxSessions})`,
+  );
 
   return request;
 }
